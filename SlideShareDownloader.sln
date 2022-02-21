@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideShareDownloader", "SlideShareDownloader.csproj", "{5227D833-8BB5-4879-B6AF-064BC40580AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlideShareDownloader", "SlideShareDownloader.csproj", "{5227D833-8BB5-4879-B6AF-064BC40580AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideShareDownloaderGUI", "..\SlideShareDownloaderGUI\SlideShareDownloaderGUI.csproj", "{BC8A5EAB-F7FB-408E-86CF-D9F1DE9ECF7B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{5227D833-8BB5-4879-B6AF-064BC40580AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5227D833-8BB5-4879-B6AF-064BC40580AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5227D833-8BB5-4879-B6AF-064BC40580AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC8A5EAB-F7FB-408E-86CF-D9F1DE9ECF7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC8A5EAB-F7FB-408E-86CF-D9F1DE9ECF7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC8A5EAB-F7FB-408E-86CF-D9F1DE9ECF7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC8A5EAB-F7FB-408E-86CF-D9F1DE9ECF7B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

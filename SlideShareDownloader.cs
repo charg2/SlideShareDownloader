@@ -1,8 +1,8 @@
 ﻿using HtmlAgilityPack;
-using System.Net;
 using System.Text.RegularExpressions;
 
 namespace SlideShareDownloader;
+
 
 ///--------------------------------------------------------------------------------
 ///
@@ -12,10 +12,9 @@ namespace SlideShareDownloader;
 public class App : Mala.Core.Singleton<App>
 {
     public List<string> ImgSrcLinkList  { get; set; } //< 이미지 링크 컨테이너
-    public Regex        LinkValidator   { get; set; } //< 링크 유효성 검사기
-    public string       Url             { get; set; } //< PPT 링크
+    public Regex        UrlValidator    { get; set; } //< URL 유효성 검사기
     public HtmlWeb      Web             { get; set; } //< HTML 웹 페이지 정보
-    public WebClient    WebClient       { get; set; } //< 웹 클라이언트
+    public HttpClient   HttpClient      { get; set; } //< 웹 클라이언트
     public string       SavePath        { get; set; } //< 저장 위치
 
     ///--------------------------------------------------------------------------------
@@ -38,15 +37,14 @@ public class App : Mala.Core.Singleton<App>
     public bool Initialize()
     {
         ImgSrcLinkList = new List<string>();
-        Url            = String.Empty;
-        LinkValidator  = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
+        UrlValidator   = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
         Web            = new HtmlWeb();
-        WebClient      = new WebClient();
-        SavePath       = String.Empty;
+        HttpClient     = new HttpClient();
+        SavePath       = string.Empty;
 
         return true;
     }
-
+    
     ///--------------------------------------------------------------------------------
     ///
     /// @brief 재활용을 위해 초기화한다. Initialize() 이후
@@ -55,27 +53,32 @@ public class App : Mala.Core.Singleton<App>
     public void Reset()
     {
         ImgSrcLinkList.Clear();
-        Url = String.Empty;
     }
 
     ///--------------------------------------------------------------------------------
     ///
-    /// @brief 다운로드를 한다.
+    /// @brief 다운로드 한다.
     /// 
     /// @url   슬라이드의 url
     /// 
     ///--------------------------------------------------------------------------------
     public bool Download( string url )
     {
+        // 1. URL을 검증한다.
         if ( false == _CheckUrlUsingRegax( url ) )
             return false;
 
-        var htmlDocument = Web.Load( Url );
-        if ( false == ExtractImgLinksFromHtmlDoc( htmlDocument ) )
-            return false;
+        // 2. URL을 통해 페이지 HTML 문서를 읽어들임
+        var htmlDocument = Web.Load( url );
 
-        if ( false == _RecieveImg() )
+        // 3. HTML 문서에서 Img링크 추출
+        if ( false == _ExtractImgLinksFromHtmlDoc( htmlDocument ) )
             return false;
+        
+        // 4. 이미지를 받는다
+        _DownloadImgAsync();
+
+        // Constext 만들어 작업 진행.
 
         return true;
     }
@@ -85,23 +88,24 @@ public class App : Mala.Core.Singleton<App>
     /// @brief 이미지를 받는다.
     /// 
     ///--------------------------------------------------------------------------------
-    private bool _RecieveImg()
+    private async void _DownloadImgAsync()
     {
         int counter = 0;
         foreach ( var imgLink in ImgSrcLinkList )
         {
-            // TODO : 비동기 태스크 방식으로..
-            WebClient.DownloadFile( new Uri( imgLink ), SavePath + $"slide_share{ counter++ }.jpg" );
+            var response = await HttpClient.GetAsync( imgLink );
 
-            Console.WriteLine( $" { counter } / { ImgSrcLinkList.Count }" );
+            byte[] responseContent = await response.Content.ReadAsByteArrayAsync();
+            
+            File.WriteAllBytes( $"{counter++}.jpg", responseContent );
         }
-
-        return true;
     }
 
     ///--------------------------------------------------------------------------------
     ///
     /// @brief  정규 표현식을 통해서 Url을 검증한다.
+    /// 
+    /// @url    검증할 url
     /// 
     ///--------------------------------------------------------------------------------
     private bool _CheckUrlUsingRegax( string url )
@@ -113,24 +117,26 @@ public class App : Mala.Core.Singleton<App>
         if ( false == UrlValidator.IsMatch( url ) )
             return false;
 
-        Url = url;
-
         return true;
     }
 
     ///--------------------------------------------------------------------------------
     ///
-    /// @brief Html Document로부터 Img링크를 추출한다.
+    /// @brief        Html Document로부터 Img링크를 추출한다.
+    /// 
+    /// @htmlDocument 추출을 진행할 Html Document 객체
     /// 
     ///--------------------------------------------------------------------------------
-    public bool ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument )
+    private bool _ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument )
     {
         // 1. 바디 노드 분리
         var bodyNode            = htmlDocument.DocumentNode.SelectSingleNode( "html/body" );
-        // 2. 슬라이드 페이지의 컨테이너 노드들 분리
+
+        // 2. 바디 노드중 슬라이드 페이지의 컨테이너 노드 분리
         var slideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div" );
 
-        Action< HtmlNode > findAndCollectSrcset = ( HtmlNode node ) =>
+        // 
+        Action< HtmlNode > findAndCollectSrcsetTask = ( HtmlNode node ) =>
             {
                 foreach ( var attribute in node.Attributes )
                 {
@@ -149,16 +155,14 @@ public class App : Mala.Core.Singleton<App>
         // 하... 혼잡한 HTML의 계층구조...
         foreach ( var slideNode1 in slideContainerNodes )
         {
-            findAndCollectSrcset( slideNode1 );
+            findAndCollectSrcsetTask( slideNode1 );
 
             foreach ( var slideNode2 in slideNode1.ChildNodes )
             {
-                findAndCollectSrcset( slideNode2 );
+                findAndCollectSrcsetTask( slideNode2 );
 
                 foreach ( var slideNode3 in slideNode2.ChildNodes )
-                {
-                    findAndCollectSrcset( slideNode3 );
-                }
+                    findAndCollectSrcsetTask( slideNode3 );
             }
         }
 
