@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -9,7 +10,7 @@ namespace SlideShareDownloader;
 /// @brief 슬라이드 쉐어 이미지 다운로더
 /// 
 ///--------------------------------------------------------------------------------
-public class App : Mala.Core.Singleton<App>
+public class App : Mala.Core.Singleton< App >
 {
     public List< string > ImgSrcLinkList  { get; set; } //< 이미지 링크 컨테이너
     public Regex          UrlValidator    { get; set; } //< URL 유효성 검사기
@@ -79,7 +80,8 @@ public class App : Mala.Core.Singleton<App>
         // 4. 폴더가 없다면 폴더를 생성한다
         CreateDirectoryIfNotExist( htmlDocument );
 
-        _DownloadImgAsync();
+        var task = _DownloadImgAsync();
+        task.Wait();
 
         return true;
     }
@@ -109,20 +111,34 @@ public class App : Mala.Core.Singleton<App>
     ///--------------------------------------------------------------------------------
     private async Task _DownloadImgAsync()
     {
-        int counter  = 0;
-        var taskList = new List< Task >();
-
+        var httpTaskList = new List< Task< HttpResponseMessage > >();
         foreach ( var imgLink in ImgSrcLinkList )
         {
-            var response = await HttpClient.GetAsync( imgLink );
-
-            byte[] responseContent = await response.Content.ReadAsByteArrayAsync();
-            
-            var task = File.WriteAllBytesAsync( $"{ SlideTitle }/{ counter++ }.jpg", responseContent );
-            taskList.Add( task );
+            var task = HttpClient.GetAsync( imgLink );
+            httpTaskList.Add( task );
         }
 
-        Task.WaitAll( taskList.ToArray() );
+        Task.WaitAll( httpTaskList.ToArray() );
+
+        var downloadTaskList = new List< Task< byte[] > >();
+        foreach ( var httpTask in httpTaskList )
+        {
+            var task = httpTask.Result.Content.ReadAsByteArrayAsync();
+            downloadTaskList.Add( task );
+        }
+
+        Task.WaitAll( downloadTaskList.ToArray() );
+
+
+        int counter       = 0;
+        var writeTaskList = new List< Task >();
+        foreach ( var downloadTask in downloadTaskList )
+        {
+            var task = File.WriteAllBytesAsync( $"{ SlideTitle }/{ counter++ }.jpg", downloadTask.Result );
+            writeTaskList.Add( task );
+        }
+
+        Task.WaitAll( writeTaskList.ToArray() );
     }
 
     ///--------------------------------------------------------------------------------
