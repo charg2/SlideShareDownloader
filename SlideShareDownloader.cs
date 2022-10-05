@@ -79,11 +79,7 @@ public class App : Mala.Core.Singleton<App>
         // 4. 폴더가 없다면 폴더를 생성한다
         CreateDirectoryIfNotExist( htmlDocument );
 
-        var taskList = new List< Task >();
-        var task     = _DownloadImgAsync();
-        taskList.Add( task );
-
-        Task.WaitAll( taskList.ToArray() );
+        _DownloadImgAsync();
 
         return true;
     }
@@ -113,15 +109,20 @@ public class App : Mala.Core.Singleton<App>
     ///--------------------------------------------------------------------------------
     private async Task _DownloadImgAsync()
     {
-        int counter = 0;
+        int counter  = 0;
+        var taskList = new List< Task >();
+
         foreach ( var imgLink in ImgSrcLinkList )
         {
             var response = await HttpClient.GetAsync( imgLink );
 
             byte[] responseContent = await response.Content.ReadAsByteArrayAsync();
             
-            File.WriteAllBytes( $"{ SlideTitle }/{ counter++ }.jpg", responseContent );
+            var task = File.WriteAllBytesAsync( $"{ SlideTitle }/{ counter++ }.jpg", responseContent );
+            taskList.Add( task );
         }
+
+        Task.WaitAll( taskList.ToArray() );
     }
 
     ///--------------------------------------------------------------------------------
@@ -133,7 +134,7 @@ public class App : Mala.Core.Singleton<App>
     ///--------------------------------------------------------------------------------
     private bool _CheckUrlUsingRegax( string url )
     {
-        if ( true == string.IsNullOrEmpty( url ) )
+        if ( string.IsNullOrEmpty( url ) )
             return false;
 
         var UrlValidator = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
@@ -153,7 +154,7 @@ public class App : Mala.Core.Singleton<App>
     private bool _ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument )
     {
         // 1. 바디 노드 분리
-        var bodyNode            = htmlDocument.DocumentNode.SelectSingleNode( "html/body" );
+        var bodyNode = htmlDocument.DocumentNode.SelectSingleNode( "html/body" );
 
         // 2. 바디 노드중 슬라이드 페이지의 컨테이너 노드 분리
         var slideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div" );
