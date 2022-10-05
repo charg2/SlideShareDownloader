@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace SlideShareDownloader;
 
-
 ///--------------------------------------------------------------------------------
 ///
 /// @brief 슬라이드 쉐어 이미지 다운로더
@@ -76,9 +75,9 @@ public class App : Mala.Core.Singleton<App>
             return false;
         
         // 4. 이미지를 받는다
-        _DownloadImgAsync();
-
-        // Constext 만들어 작업 진행.
+        //return _DownloadImgAsync();
+        var task = _DownloadImgAsync(); 
+        task.Wait();
 
         return true;
     }
@@ -88,7 +87,7 @@ public class App : Mala.Core.Singleton<App>
     /// @brief 이미지를 받는다.
     /// 
     ///--------------------------------------------------------------------------------
-    private async void _DownloadImgAsync()
+    private async Task _DownloadImgAsync()
     {
         int counter = 0;
         foreach ( var imgLink in ImgSrcLinkList )
@@ -136,7 +135,7 @@ public class App : Mala.Core.Singleton<App>
         var slideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div" );
 
         // 
-        Action< HtmlNode > findAndCollectSrcsetTask = ( HtmlNode node ) =>
+        Action< HtmlNode > findAndCollectSrcsetTask = ( HtmlNode node )=>
             {
                 foreach ( var attribute in node.Attributes )
                 {

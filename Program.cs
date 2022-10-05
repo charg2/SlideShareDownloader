@@ -1,5 +1,9 @@
-﻿if ( true == SlideShareDownloader.App.Instance.Download( "https://www.slideshare.net/OnGameServer/ss-13025356" ) )
+﻿Console.WriteLine( "Url을 입력해주세요 :" );
+string url = Console.ReadLine();
+
+if ( SlideShareDownloader.App.Instance.Download( url ) )
     Console.WriteLine( "다운로드 성공" );
 else
     Console.WriteLine( "다운로드 실패" );
 
+ 
