@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace SlideShareDownloader;
@@ -10,11 +11,12 @@ namespace SlideShareDownloader;
 ///--------------------------------------------------------------------------------
 public class App : Mala.Core.Singleton<App>
 {
-    public List<string> ImgSrcLinkList  { get; set; } //< 이미지 링크 컨테이너
-    public Regex        UrlValidator    { get; set; } //< URL 유효성 검사기
-    public HtmlWeb      Web             { get; set; } //< HTML 웹 페이지 정보
-    public HttpClient   HttpClient      { get; set; } //< 웹 클라이언트
-    public string       SavePath        { get; set; } //< 저장 위치
+    public List< string > ImgSrcLinkList  { get; set; } //< 이미지 링크 컨테이너
+    public Regex          UrlValidator    { get; set; } //< URL 유효성 검사기
+    public HtmlWeb        Web             { get; set; } //< HTML 웹 페이지 정보
+    public HttpClient     HttpClient      { get; set; } //< 웹 클라이언트
+    public string         SavePath        { get; set; } //< 저장 위치
+    public string         SlideTitle      { get; set; } //< Slide 제목
 
     ///--------------------------------------------------------------------------------
     ///
@@ -35,7 +37,7 @@ public class App : Mala.Core.Singleton<App>
     ///--------------------------------------------------------------------------------
     public bool Initialize()
     {
-        ImgSrcLinkList = new List<string>();
+        ImgSrcLinkList = new List< string >();
         UrlValidator   = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
         Web            = new HtmlWeb();
         HttpClient     = new HttpClient();
@@ -64,22 +66,44 @@ public class App : Mala.Core.Singleton<App>
     public bool Download( string url )
     {
         // 1. URL을 검증한다.
-        if ( false == _CheckUrlUsingRegax( url ) )
+        if ( !_CheckUrlUsingRegax( url ) )
             return false;
 
         // 2. URL을 통해 페이지 HTML 문서를 읽어들임
         var htmlDocument = Web.Load( url );
 
         // 3. HTML 문서에서 Img링크 추출
-        if ( false == _ExtractImgLinksFromHtmlDoc( htmlDocument ) )
+        if ( !_ExtractImgLinksFromHtmlDoc( htmlDocument ) )
             return false;
-        
-        // 4. 이미지를 받는다
-        //return _DownloadImgAsync();
-        var task = _DownloadImgAsync(); 
-        task.Wait();
+
+        // 4. 폴더가 없다면 폴더를 생성한다
+        CreateDirectoryIfNotExist( htmlDocument );
+
+        var taskList = new List< Task >();
+        var task     = _DownloadImgAsync();
+        taskList.Add( task );
+
+        Task.WaitAll( taskList.ToArray() );
 
         return true;
+    }
+
+    private void CreateDirectoryIfNotExist( HtmlDocument htmlDocument )
+    {
+        var TitleNode = htmlDocument.DocumentNode.SelectSingleNode( "html/head/title" );
+
+        SlideTitle = TitleNode.InnerText;
+
+        if ( !Directory.Exists( SlideTitle ) )
+        {
+            var invalidChars = Path.GetInvalidFileNameChars();
+
+            foreach ( var ch in invalidChars )
+                SlideTitle = SlideTitle.Replace( ch, '_' );
+
+            Directory.CreateDirectory( SlideTitle );
+        }
+
     }
 
     ///--------------------------------------------------------------------------------
@@ -96,7 +120,7 @@ public class App : Mala.Core.Singleton<App>
 
             byte[] responseContent = await response.Content.ReadAsByteArrayAsync();
             
-            File.WriteAllBytes( $"{counter++}.jpg", responseContent );
+            File.WriteAllBytes( $"{ SlideTitle }/{ counter++ }.jpg", responseContent );
         }
     }
 
@@ -113,7 +137,7 @@ public class App : Mala.Core.Singleton<App>
             return false;
 
         var UrlValidator = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
-        if ( false == UrlValidator.IsMatch( url ) )
+        if ( !UrlValidator.IsMatch( url ) )
             return false;
 
         return true;
