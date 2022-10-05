@@ -26,11 +26,11 @@ namespace SlideShareDownloaderGUI
         {
             InitializeComponent();
 
-            listBox.ItemsSource = new List< A >() 
+            listBox.ItemsSource = new List< Item >() 
                 {
-                    new (){ Name = "ABC", Progressed = 33, Max = 100 },
-                    new (){ Name = "CDE", Progressed = 33, Max = 100 },
-                    new (){ Name = "EFG", Progressed = 78, Max = 100 },
+                    new (){ Name = "ABC", Link = "www.naver.com", Progressed = 33, Max = 100 },
+                    new (){ Name = "CDE", Link = "www.kakao.com", Progressed = 33, Max = 100 },
+                    new (){ Name = "EFG", Link = "www.google.com", Progressed = 78, Max = 100 }
                 };
         }
 
@@ -66,10 +66,15 @@ namespace SlideShareDownloaderGUI
             public int    Downloaded { get; set; } = 0;
         }
 
-        public class A
+        private void TextBox_TextChanged( object sender, TextChangedEventArgs e )
+        {
+
+        }
+
+        public record Item
         {
             public string Name       { get; set; } = string.Empty;
-            public string Name2      { get; set; } = string.Empty;
+            public string Link       { get; set; } = string.Empty;
             public int    Progressed { get; set; } = 0;
             public int    Max        { get; set; } = 100;
         }
