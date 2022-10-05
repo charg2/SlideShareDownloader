@@ -1,0 +1,66 @@
+﻿<Window x:Class="SlideShareDownloaderGUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SlideShareDownloaderGUI"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="414">
+    <Grid Margin="0,0,41,0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80*"/>
+            <ColumnDefinition Width="11*"/>
+            <ColumnDefinition Width="282*"/>
+        </Grid.ColumnDefinitions>
+        <Button Content="Download" Margin="230,17,-27,378" Click="Button_StartDownload" Grid.Column="2"/>
+        <TextBox x:Name="UrlTextBox" HorizontalAlignment="Left" Margin="56,18,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="262" Height="19" TextChanged="TextBox_TextChanged" Grid.ColumnSpan="3" AutomationProperties.HelpText="Link"/>
+        <Label Content="링크&#xD;&#xA;" HorizontalAlignment="Left" Margin="10,13,0,0" VerticalAlignment="Top" Height="24"/>
+        <ListBox x:Name="listBox" d:ItemsSource="{d:SampleData ItemCount=5}" Grid.ColumnSpan="3" Margin="11,70,-21,10" SelectionChanged="ListBox_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Width="372">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" 
+                                   Text="{ Binding Path = Name }"
+                                   FontSize="18"
+                                   Margin="30,10,30,10"/>
+
+
+                        <Border Grid.Column="1"
+                                Name="progressBorder"
+                                Margin="0 10 0 0"
+                                Width="220"
+                                Height="30"
+                                BorderBrush="Black"
+                                BorderThickness="2">
+                            <Grid Margin="0">
+                                <Label Name="progressBackgroundLabel"
+                                       Margin="0 0 0 1"
+                                       HorizontalAlignment="Left"
+                                       Width="{ Binding Path = Progressed }" 
+                                       Background="LightGreen" />
+                                <Label Name="progressLabel"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Content="{Binding XPath=Progressed }" />
+                            </Grid>
+                        </Border>
+
+                        <!--<ProgressBar Grid.Column="1"
+                                     Minimum="0" 
+                                     Maximum="100"
+                                     FontSize="30"
+                                     Value="{Binding Path = Downloded}" 
+                                     Margin="75,20,22,20"/>-->
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+    </Grid>
+</Window>
