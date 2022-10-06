@@ -1,6 +1,4 @@
 ﻿using HtmlAgilityPack;
-using System.Diagnostics.Metrics;
-using System.IO;
 using System.Text.RegularExpressions;
 
 namespace SlideShareDownloader;
@@ -16,7 +14,8 @@ public class App : Mala.Core.Singleton< App >
     public Regex                           UrlValidator { get; set; }          //< URL 유효성 검사기
     public HtmlWeb                         Web          { get; set; } = new(); //< HTML 웹 페이지 정보
     public HttpClient                      HttpClient   { get; set; } = new(); //< 웹 클라이언트
-
+    public Queue< SlideItem >              WaitingQueue    { get; set; } = new();
+    public bool                            Completed    => WaitingQueue.Count == 0;
     ///--------------------------------------------------------------------------------
     ///
     /// @brief 생성자
@@ -58,45 +57,61 @@ public class App : Mala.Core.Singleton< App >
     /// @url   슬라이드의 url
     /// 
     ///--------------------------------------------------------------------------------
-    public bool Download( string url )
+    public bool Download( string url, bool waitUntilComplete = false )
     {
         // 1. URL을 검증한다.
         if ( !_CheckUrlUsingRegax( url ) )
             return false;
 
-        // 2. URL을 통해 페이지 HTML 문서를 읽어들임
+        // 2. URL을 통해 페이지 HTML 문서를 읽어들임( 동기식, 1차 병목 )
         var htmlDocument = Web.Load( url );
 
+        // 3.
         var slideItem = new SlideItem(){ Link = url };
-        Slides.Add( url, slideItem );
+        if ( !Slides.TryAdd( url, slideItem ) )
+        {
+            Console.WriteLine( "이미 등록된 슬라이드" );
+            return false;
+        }
 
-        // 3. HTML 문서에서 Img링크 추출
-        if ( !_ExtractImgLinksFromHtmlDoc( htmlDocument, slideItem ) )
+        // 4. HTML 문서에서 Img링크와 타이틀 추출
+        if ( !slideItem.ExtractTitleFrom   ( htmlDocument ) ||
+             !slideItem.ExtractImgLinksFrom( htmlDocument ) )
             return false;
 
-        // 4. 폴더가 없다면 폴더를 생성한다
-        CreateDirectoryIfNotExist( htmlDocument, slideItem );
+        // 5. 폴더가 없다면 폴더를 생성한다
+        CreateDirectoryIfNotExist( slideItem.Title );
 
-        var task = _DownloadImgAsync( slideItem );
-        task.Wait();
+        // 6. 스레드풀에 다운로드 작업을 던진다.
+        slideItem.DownloadTask = Task.Run( () => _DownloadImgAsync( slideItem ) );
+
+        if ( waitUntilComplete )
+            slideItem.DownloadTask.Wait();
+        else
+            WaitingQueue.Enqueue( slideItem );
 
         return true;
     }
 
-    private void CreateDirectoryIfNotExist( HtmlDocument htmlDocument, SlideItem slideItem )
+    public void Update( Action< SlideItem > onCompleted )
     {
-        var TitleNode = htmlDocument.DocumentNode.SelectSingleNode( "html/head/title" );
-
-        slideItem.Title = TitleNode.InnerText;
-        if ( !Directory.Exists( slideItem.Title ) )
+        if ( WaitingQueue.TryPeek( out var slide ) )
         {
-            var invalidChars = Path.GetInvalidFileNameChars();
+            if ( slide.IsCompleted )
+            {
+                WaitingQueue.Dequeue();
 
-            foreach ( var ch in invalidChars )
-                slideItem.Title = slideItem.Title.Replace( ch, '_' );
+                onCompleted( slide );
 
-            Directory.CreateDirectory( slideItem.Title );
+                
+            }
         }
+    }
+
+    private void CreateDirectoryIfNotExist( string title )
+    {
+        if ( !Directory.Exists( title ) )
+            Directory.CreateDirectory( title );
     }
 
     /// --------------------------------------------------------------------------------
@@ -107,19 +122,19 @@ public class App : Mala.Core.Singleton< App >
     /// <param name="slideItem"></param>
     private async Task _DownloadImgAsync( SlideItem slideItem )
     {
-        var httpTaskList = new List< Task< HttpResponseMessage > >();
+        var httpGetTaskList = new List< Task< HttpResponseMessage > >();
         foreach ( var imgLink in slideItem.ImgSrcLinks )
         {
             var task = HttpClient.GetAsync( imgLink );
-            httpTaskList.Add( task );
+            httpGetTaskList.Add( task );
         }
 
-        Task.WaitAll( httpTaskList.ToArray() );
+        Task.WaitAll( httpGetTaskList.ToArray() );
 
         var downloadTaskList = new List< Task< byte[] > >();
-        foreach ( var httpTask in httpTaskList )
+        foreach ( var httpGetTask in httpGetTaskList )
         {
-            var task = httpTask.Result.Content.ReadAsByteArrayAsync();
+            var task = httpGetTask.Result.Content.ReadAsByteArrayAsync();
             downloadTaskList.Add( task );
         }
 
@@ -154,55 +169,6 @@ public class App : Mala.Core.Singleton< App >
             return false;
 
         return true;
-    }
-
-    ///--------------------------------------------------------------------------------
-    ///
-    /// @brief        Html Document로부터 Img링크를 추출한다.
-    /// 
-    /// @htmlDocument 추출을 진행할 Html Document 객체
-    /// 
-    ///--------------------------------------------------------------------------------
-    private bool _ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument, SlideItem slideItem )
-    {
-        // 1. 바디 노드 분리
-        var bodyNode = htmlDocument.DocumentNode.SelectSingleNode( "html/body" );
-
-        // 2. 바디 노드중 슬라이드 페이지의 컨테이너 노드 분리
-        var slideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div" );
-
-        // 
-        Action< HtmlNode > findAndCollectSrcsetTask = ( HtmlNode node )=>
-            {
-                foreach ( var attribute in node.Attributes )
-                {
-                    if ( attribute.Name == "srcset" )
-                    {
-                        var imgSrcLinks = attribute.Value.Split( ',' );
-                        if ( imgSrcLinks.Length != 0 )
-                        {
-                            string maximumSizeImgLink = imgSrcLinks[ imgSrcLinks.Length - 1 ];
-                            slideItem.ImgSrcLinks.Add( maximumSizeImgLink.Split( new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries )[ 0 ] );
-                        }
-                    }
-                }
-            };
-
-        // 하... 혼잡한 HTML의 계층구조...
-        foreach ( var slideNode1 in slideContainerNodes )
-        {
-            findAndCollectSrcsetTask( slideNode1 );
-
-            foreach ( var slideNode2 in slideNode1.ChildNodes )
-            {
-                findAndCollectSrcsetTask( slideNode2 );
-
-                foreach ( var slideNode3 in slideNode2.ChildNodes )
-                    findAndCollectSrcsetTask( slideNode3 );
-            }
-        }
-
-        return slideItem.ImgSrcLinks.Count > 0;
     }
 
 }
