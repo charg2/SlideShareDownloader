@@ -12,12 +12,10 @@ namespace SlideShareDownloader;
 ///--------------------------------------------------------------------------------
 public class App : Mala.Core.Singleton< App >
 {
-    public List< string > ImgSrcLinkList  { get; set; } //< 이미지 링크 컨테이너
-    public Regex          UrlValidator    { get; set; } //< URL 유효성 검사기
-    public HtmlWeb        Web             { get; set; } //< HTML 웹 페이지 정보
-    public HttpClient     HttpClient      { get; set; } //< 웹 클라이언트
-    public string         SavePath        { get; set; } //< 저장 위치
-    public string         SlideTitle      { get; set; } //< Slide 제목
+    public Dictionary< string, SlideItem > Slides       { get; set; } = new(); //< 슬라이드 컨테이너
+    public Regex                           UrlValidator { get; set; }          //< URL 유효성 검사기
+    public HtmlWeb                         Web          { get; set; } = new(); //< HTML 웹 페이지 정보
+    public HttpClient                      HttpClient   { get; set; } = new(); //< 웹 클라이언트
 
     ///--------------------------------------------------------------------------------
     ///
@@ -38,11 +36,7 @@ public class App : Mala.Core.Singleton< App >
     ///--------------------------------------------------------------------------------
     public bool Initialize()
     {
-        ImgSrcLinkList = new List< string >();
-        UrlValidator   = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
-        Web            = new HtmlWeb();
-        HttpClient     = new HttpClient();
-        SavePath       = string.Empty;
+        UrlValidator = new Regex( "(https://){0,1}([a-zA-Z]*.){0,1}slideshare.net/[a-zA-Z0-9-./]+" );
 
         return true;
     }
@@ -54,7 +48,7 @@ public class App : Mala.Core.Singleton< App >
     ///--------------------------------------------------------------------------------
     public void Reset()
     {
-        ImgSrcLinkList.Clear();
+        Slides.Clear();
     }
 
     ///--------------------------------------------------------------------------------
@@ -73,46 +67,48 @@ public class App : Mala.Core.Singleton< App >
         // 2. URL을 통해 페이지 HTML 문서를 읽어들임
         var htmlDocument = Web.Load( url );
 
+        var slideItem = new SlideItem(){ Link = url };
+        Slides.Add( url, slideItem );
+
         // 3. HTML 문서에서 Img링크 추출
-        if ( !_ExtractImgLinksFromHtmlDoc( htmlDocument ) )
+        if ( !_ExtractImgLinksFromHtmlDoc( htmlDocument, slideItem ) )
             return false;
 
         // 4. 폴더가 없다면 폴더를 생성한다
-        CreateDirectoryIfNotExist( htmlDocument );
+        CreateDirectoryIfNotExist( htmlDocument, slideItem );
 
-        var task = _DownloadImgAsync();
+        var task = _DownloadImgAsync( slideItem );
         task.Wait();
 
         return true;
     }
 
-    private void CreateDirectoryIfNotExist( HtmlDocument htmlDocument )
+    private void CreateDirectoryIfNotExist( HtmlDocument htmlDocument, SlideItem slideItem )
     {
         var TitleNode = htmlDocument.DocumentNode.SelectSingleNode( "html/head/title" );
 
-        SlideTitle = TitleNode.InnerText;
-
-        if ( !Directory.Exists( SlideTitle ) )
+        slideItem.Title = TitleNode.InnerText;
+        if ( !Directory.Exists( slideItem.Title ) )
         {
             var invalidChars = Path.GetInvalidFileNameChars();
 
             foreach ( var ch in invalidChars )
-                SlideTitle = SlideTitle.Replace( ch, '_' );
+                slideItem.Title = slideItem.Title.Replace( ch, '_' );
 
-            Directory.CreateDirectory( SlideTitle );
+            Directory.CreateDirectory( slideItem.Title );
         }
-
     }
 
-    ///--------------------------------------------------------------------------------
-    ///
-    /// @brief 이미지를 받는다.
+    /// --------------------------------------------------------------------------------
     /// 
-    ///--------------------------------------------------------------------------------
-    private async Task _DownloadImgAsync()
+    ///  @brief 이미지를 받는다.
+    ///  
+    /// --------------------------------------------------------------------------------
+    /// <param name="slideItem"></param>
+    private async Task _DownloadImgAsync( SlideItem slideItem )
     {
         var httpTaskList = new List< Task< HttpResponseMessage > >();
-        foreach ( var imgLink in ImgSrcLinkList )
+        foreach ( var imgLink in slideItem.ImgSrcLinks )
         {
             var task = HttpClient.GetAsync( imgLink );
             httpTaskList.Add( task );
@@ -134,7 +130,7 @@ public class App : Mala.Core.Singleton< App >
         var writeTaskList = new List< Task >();
         foreach ( var downloadTask in downloadTaskList )
         {
-            var task = File.WriteAllBytesAsync( $"{ SlideTitle }/{ counter++ }.jpg", downloadTask.Result );
+            var task = File.WriteAllBytesAsync( $"{ slideItem.Title }/{ counter++ }.jpg", downloadTask.Result );
             writeTaskList.Add( task );
         }
 
@@ -167,7 +163,7 @@ public class App : Mala.Core.Singleton< App >
     /// @htmlDocument 추출을 진행할 Html Document 객체
     /// 
     ///--------------------------------------------------------------------------------
-    private bool _ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument )
+    private bool _ExtractImgLinksFromHtmlDoc( HtmlDocument htmlDocument, SlideItem slideItem )
     {
         // 1. 바디 노드 분리
         var bodyNode = htmlDocument.DocumentNode.SelectSingleNode( "html/body" );
@@ -186,7 +182,7 @@ public class App : Mala.Core.Singleton< App >
                         if ( imgSrcLinks.Length != 0 )
                         {
                             string maximumSizeImgLink = imgSrcLinks[ imgSrcLinks.Length - 1 ];
-                            ImgSrcLinkList.Add( maximumSizeImgLink.Split( new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries )[ 0 ] );
+                            slideItem.ImgSrcLinks.Add( maximumSizeImgLink.Split( new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries )[ 0 ] );
                         }
                     }
                 }
@@ -206,7 +202,7 @@ public class App : Mala.Core.Singleton< App >
             }
         }
 
-        return ImgSrcLinkList.Count > 0;
+        return slideItem.ImgSrcLinks.Count > 0;
     }
 
 }
