@@ -15,7 +15,7 @@
             <ColumnDefinition Width="282*"/>
         </Grid.ColumnDefinitions>
         <Button Content="Download" Margin="230,17,-27,378" Click="Button_StartDownload" Grid.Column="2"/>
-        <TextBox x:Name="UrlTextBox" HorizontalAlignment="Left" Margin="56,18,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="262" Height="19" TextChanged="TextBox_TextChanged" Grid.ColumnSpan="3" AutomationProperties.HelpText="Link"/>
+        <TextBox x:Name="UrlTextBox" HorizontalAlignment="Left" Margin="56,18,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="262" Height="19" TextChanged="TextBox_UrlChanged" Grid.ColumnSpan="3" AutomationProperties.HelpText="Link"/>
         <Label Content="링크&#xD;&#xA;" HorizontalAlignment="Left" Margin="10,13,0,0" VerticalAlignment="Top" Height="24"/>
         <ListBox x:Name="listBox" d:ItemsSource="{d:SampleData ItemCount=5}" Grid.ColumnSpan="3" Margin="11,70,-21,10" SelectionChanged="ListBox_SelectionChanged">
             <ListBox.ItemTemplate>

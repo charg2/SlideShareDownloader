@@ -20,18 +20,18 @@ namespace SlideShareDownloaderGUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        string _url = string.Empty; //< url
+        string               _url   = string.Empty; //< url
+        private List< Item > _items = new();
 
         public MainWindow()
         {
             InitializeComponent();
 
-            listBox.ItemsSource = new List< Item >() 
-                {
-                    new (){ Name = "ABC", Link = "www.naver.com", Progressed = 33, Max = 100 },
-                    new (){ Name = "CDE", Link = "www.kakao.com", Progressed = 33, Max = 100 },
-                    new (){ Name = "EFG", Link = "www.google.com", Progressed = 78, Max = 100 }
-                };
+            
+            listBox.ItemsSource = _items;
+            _items.Add( new() { Name = "ABC", Link = "www.naver.com", Progressed  = 33, Max = 100 } );
+            _items.Add( new() { Name = "CDE", Link = "www.kakao.com", Progressed  = 33, Max = 100 } );
+            _items.Add( new() { Name = "EFG", Link = "www.google.com", Progressed = 78, Max = 100 } );
         }
 
         /// <summary>
@@ -42,7 +42,12 @@ namespace SlideShareDownloaderGUI
         private void Button_StartDownload( object sender, RoutedEventArgs e )
         {
             if ( SlideShareDownloader.App.Instance.Download( _url ) )
-                ;
+            {
+                _items.Add( new(){ Name = "zz", Link ="test.com", Progressed = 22,Max = 100 } );
+                //_items.Add( new() { Name = "EFG", Link = "www.google.com", Progressed = 78, Max = 100 } );
+                //listBox.ItemsSource = _items;
+            }
+
         }
 
         /// <summary>
@@ -50,7 +55,7 @@ namespace SlideShareDownloaderGUI
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void TextBox_TextChanged( object sender, RoutedEventArgs e )
+        private void TextBox_UrlChanged( object sender, RoutedEventArgs e )
         {
             TextBox textBox = sender as TextBox;
             _url = textBox.Text;
@@ -58,12 +63,6 @@ namespace SlideShareDownloaderGUI
 
         private void ListBox_SelectionChanged( object sender, SelectionChangedEventArgs e )
         {
-        }
-
-        public class Slide
-        {
-            public string Name       { get; set; } = string.Empty;
-            public int    Downloaded { get; set; } = 0;
         }
 
         private void TextBox_TextChanged( object sender, TextChangedEventArgs e )
