@@ -82,7 +82,7 @@ public class App : Mala.Core.Singleton< App >
         // 5. 폴더가 없다면 폴더를 생성한다
         CreateDirectoryIfNotExist( slideItem.Title );
 
-        // 6. 스레드풀에 다운로드 작업을 던진다.
+        // 6. 스레드풀에 다운로드 위임
         slideItem.DownloadTask = Task.Run( () => _DownloadImgAsync( slideItem ) );
 
         if ( waitUntilComplete )
@@ -122,34 +122,25 @@ public class App : Mala.Core.Singleton< App >
     /// <param name="slideItem"></param>
     private async Task _DownloadImgAsync( SlideItem slideItem )
     {
-        var httpGetTaskList = new List< Task< HttpResponseMessage > >();
+        int          counter  = 0;
+        List< Task > taskList = new();
         foreach ( var imgLink in slideItem.ImgSrcLinks )
         {
-            var task = HttpClient.GetAsync( imgLink );
-            httpGetTaskList.Add( task );
+            int counterCapture = counter;
+            var downloadTask = Task.Run( async () =>
+            {
+                var httpResponseMessage = await HttpClient.GetAsync( imgLink );
+
+                var imgBytes = await httpResponseMessage.Content.ReadAsByteArrayAsync();
+
+                await File.WriteAllBytesAsync( $"{ slideItem.Title }/{ counterCapture }.jpg", imgBytes );
+            } );
+
+            counter += 1;
+            taskList.Add( downloadTask );
         }
 
-        Task.WaitAll( httpGetTaskList.ToArray() );
-
-        var downloadTaskList = new List< Task< byte[] > >();
-        foreach ( var httpGetTask in httpGetTaskList )
-        {
-            var task = httpGetTask.Result.Content.ReadAsByteArrayAsync();
-            downloadTaskList.Add( task );
-        }
-
-        Task.WaitAll( downloadTaskList.ToArray() );
-
-
-        int counter       = 0;
-        var writeTaskList = new List< Task >();
-        foreach ( var downloadTask in downloadTaskList )
-        {
-            var task = File.WriteAllBytesAsync( $"{ slideItem.Title }/{ counter++ }.jpg", downloadTask.Result );
-            writeTaskList.Add( task );
-        }
-
-        Task.WaitAll( writeTaskList.ToArray() );
+        Task.WaitAll( taskList.ToArray() );
     }
 
     ///--------------------------------------------------------------------------------
@@ -157,7 +148,7 @@ public class App : Mala.Core.Singleton< App >
     /// @brief  정규 표현식을 통해서 Url을 검증한다.
     /// 
     /// @url    검증할 url
-    /// 
+    ///  
     ///--------------------------------------------------------------------------------
     private bool _CheckUrlUsingRegax( string url )
     {
