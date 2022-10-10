@@ -20,7 +20,7 @@ namespace SlideShareDownloaderGUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        string               _url   = string.Empty; //< url
+        private string       _url   = string.Empty; //< url
         private List< Item > _items = new();
 
         public MainWindow()
@@ -42,12 +42,15 @@ namespace SlideShareDownloaderGUI
         private void Button_StartDownload( object sender, RoutedEventArgs e )
         {
             if ( SlideShareDownloader.App.Instance.Download( _url ) )
-            {
-                _items.Add( new(){ Name = "zz", Link ="test.com", Progressed = 22,Max = 100 } );
-                //_items.Add( new() { Name = "EFG", Link = "www.google.com", Progressed = 78, Max = 100 } );
-                //listBox.ItemsSource = _items;
-            }
+                AddItemAndRefreshListView( "zz", "test.com", 100 );
+        }
 
+        public void AddItemAndRefreshListView( string name, string link, int max )
+        {
+            _items.Add( new() { Name = name, Link = link, Progressed = 0, Max = max } );
+
+            listBox.ItemsSource = _items;
+            listBox.Items.Refresh();
         }
 
         /// <summary>

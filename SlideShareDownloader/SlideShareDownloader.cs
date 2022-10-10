@@ -102,8 +102,6 @@ public class App : Mala.Core.Singleton< App >
                 WaitingQueue.Dequeue();
 
                 onCompleted( slide );
-
-                
             }
         }
     }

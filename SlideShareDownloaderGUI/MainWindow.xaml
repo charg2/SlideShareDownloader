@@ -40,8 +40,8 @@
                             Value="{ Binding Path=Progressed }"
                             Width="150"
                             Height="20"
-                            Name="pbStatus" />
-                        <TextBlock Grid.Column="1" Text="{Binding ElementName=pbStatus, Path=Value, StringFormat={}{0:0}/{0:0} }" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            Name="ProgressBar" />
+                        <TextBlock Grid.Column="1" Text="{Binding ElementName=ProgressBar, Path=Value, StringFormat={}{0:0}/{0:0} }" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
                     </Grid>
                 </DataTemplate>
