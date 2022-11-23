@@ -6,10 +6,8 @@ string url = Console.ReadLine();
 
 var watch = Stopwatch.StartNew();
 
-if ( SlideShareDownloader.App.Instance.Download( url, true ) )
-    Console.WriteLine( "다운로드 성공" );
-else
-    Console.WriteLine( "다운로드 실패" );
+bool success = SlideShareDownloader.App.Instance.Download( url, true );
+Console.WriteLine( success ? "다운로드 성공" : "다운로드 실패" );
 
 watch.Stop();
 Console.WriteLine( watch.ElapsedMilliseconds );
