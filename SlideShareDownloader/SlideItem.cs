@@ -19,15 +19,25 @@ public record SlideItem
          // 1. 바디 노드 분리
         var bodyNode = htmlDoc.DocumentNode.SelectSingleNode( "html/body" );
 
-        // 2. 바디 노드중 슬라이드 페이지의 컨테이너 노드 분리 ( 1 ~ 3 페이지 )
-        var slideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div/picture/source" ).ToList();
+        // 2. 이미지를 감싸고 있는 노드를 획득한다.
+        var slideContainerNodes = bodyNode.SelectNodes( "//picture[@data-testid='slide-image-picture']/source" ).ToList();
 
-        // 3. SlideShare 사이트에 광고가 추가되었다.
-        // <noscript class="loading-lazy"> 태그로 감싸져 있다. ( ~ 4 페이지 )
-        var lazyLoadingSlideContainerNodes = bodyNode.SelectNodes( "//div[@id='slide-container']/div/noscript/picture/source" ).ToList();
+        var findAndCollectSrcsetTask = ( HtmlNode node )=>
+            {
+                foreach ( var attribute in node.Attributes )
+                {
 
-        // 4. 통합
-        slideContainerNodes.AddRange( lazyLoadingSlideContainerNodes );
+                    if ( attribute.Name == "srcset" )
+                    {
+                        var imgSrcLinks = attribute.Value.Split( ',' );
+                        if ( imgSrcLinks.Length != 0 )
+                        {
+                            string maximumSizeImgLink = imgSrcLinks[ imgSrcLinks.Length - 1 ];
+                            ImgSrcLinks.Add( maximumSizeImgLink.Split( new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries )[ 0 ] );
+                        }
+                    }
+                }
+            };
 
         var findAndCollectSrcsetTask = ( HtmlNode node )=>
             {
